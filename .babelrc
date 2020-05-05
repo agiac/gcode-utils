@@ -1,0 +1,14 @@
+{
+  "presets": [
+    [
+      "@babel/preset-env",
+      {
+        "targets": {
+          "browsers": ["defaults"],
+          "node": 10
+        },
+        "modules": false
+      }
+    ]
+  ]
+}

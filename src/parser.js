@@ -2,6 +2,7 @@ const COMMAND_PARAM_RGX = /(?<type>[^GMTN\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\
 const COMMAND_RGX = /(?<command>[GMT][^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*)[^\S\r\n]*((?<type>[^GMTN\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+))*/gi;
 
 /**
+ * @preserve
  * @param {string} gcode
  */
 function removeComments(gcode) {
@@ -9,6 +10,7 @@ function removeComments(gcode) {
 }
 
 /**
+ * @preserve
  * @param {string} command
  * @param {Object<string, number>} params
  * @returns {Object<string, number>}
@@ -26,6 +28,7 @@ function getParams(command, params) {
 }
 
 /**
+ * @preserve
  * @param {string} gcode
  * @param {{command: string, params: Object<string, number>}[]} commands
  * @returns {{command: string, params: Object<string, number>}[]}
@@ -39,7 +42,7 @@ function getCommands(gcode, commands) {
 
   const commandString = match[0];
 
-  const command = match.groups.command.toUpperCase().replace(/\s/g, '');
+  const command = match.groups.command.toUpperCase().replace(/\s/g, "");
 
   const params = getParams(commandString, {});
 
@@ -48,6 +51,7 @@ function getCommands(gcode, commands) {
 
 /**
  * Parses a GCode string, removing any comment, and returns an array of commands
+ * @preserve
  * @param {string} gcode The GCode string
  */
 function parseGcode(gcode) {
@@ -58,4 +62,4 @@ function parseGcode(gcode) {
   return commands;
 }
 
-module.exports = { parseGcode };
+export default { parseGcode };
