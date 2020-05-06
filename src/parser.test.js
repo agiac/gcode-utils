@@ -1,6 +1,6 @@
 import Parser from "./parser";
 
-describe("Test if the  GCode parser can handle:", () => {
+describe("Test if the  Gcode parser can handle:", () => {
   test("Single commands", () => {
     expect(Parser.parseGcode("G0 X20 Y10.5")).toEqual([
       {

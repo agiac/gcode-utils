@@ -1,3 +1,3 @@
-import GCodeParser from "./parser";
+import GcodeParser from "./parser";
 
-export default { GCodeParser };
+export default { GcodeParser };

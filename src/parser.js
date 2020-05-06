@@ -50,14 +50,14 @@ function getCommands(gcode, commands) {
 }
 
 /**
- * Parses a GCode string, removing any comment, and returns an array of commands
+ * Parses a Gcode string, removing any comment, and returns an array of commands
  * @preserve
- * @param {string} gcode The GCode string
+ * @param {string} gcode The Gcode string
  */
 function parseGcode(gcode) {
-  const strippedGCode = removeCommentsAndSpaces(gcode);
+  const strippedGcode = removeCommentsAndSpaces(gcode);
 
-  const commands = getCommands(strippedGCode, []);
+  const commands = getCommands(strippedGcode, []);
 
   return commands;
 }

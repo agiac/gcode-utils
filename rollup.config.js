@@ -7,7 +7,7 @@ export default [
     output: [
       { file: "dist/bundle.cjs.js", format: "cjs" },
       { file: "dist/bundle.esm.js", format: "es" },
-      { file: "dist/bundle.umd.js", format: "umd", name: "GCodeUtils" },
+      { file: "dist/bundle.umd.js", format: "umd", name: "GcodeUtils" },
     ],
     plugins: [
       babel({
