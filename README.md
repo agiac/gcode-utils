@@ -23,14 +23,25 @@ Simple zero dependencies JavaScript G-code parser for Node JS and browser. Parse
 npm install gcode-utils
 ```
 
+or via CDN
+
+```html
+<script src="https://unpkg.com/gcode-utils@latest/dist/bundle.umd.js"></script>
+```
+
 ## Usage
 
 ```javascript
-const GcodeUtils = require("gcode-utils");
+import GcodeUtils from "gcode-utils";
 
-const gcode = ["G41; a comment", "G00 X1.1 Z1.1", "T0303 M08"].join("\n");
+const gcode = [
+  "G41; a comment here",
+  "G00 X1.1 Z1.1",
+  "T0303 M08"
+  ].join("\n");
 
 const parsedGcode = GcodeUtils.GcodeParser.parseGcode(gcode);
+
 //[
 //  { command: 'G41', params: {} },
 //  { command: 'G00', params: { X: 1.1, Z: 1.1 } },
