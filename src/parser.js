@@ -1,12 +1,12 @@
-const COMMAND_PARAM_RGX = /(?<type>[^GgMmTtNn\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*[^\S\r\n]*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+[^\S\r\n]*)/g;
-const COMMAND_RGX = /(?<command>[GgMmTt][^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*)[^\S\r\n]*((?<type>[^GgMmTtNn\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*[^\S\r\n]*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+[^\S\r\n]*))*/g;
+const COMMAND_PARAM_RGX = /(?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?\.\d+)/g;
+const COMMAND_RGX = /(?<command>[GgMmTt]\d+\.?\d*)((?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?\.\d+))*/g;
 
 /**
  * @preserve
  * @param {string} gcode
  */
-function removeComments(gcode) {
-  return gcode.replace(/;.*|\(.*\)/gm, "");
+function removeCommentsAndSpaces(gcode) {
+  return gcode.replace(/;.*|\(.*\)|\s/gm, "");
 }
 
 /**
@@ -55,9 +55,9 @@ function getCommands(gcode, commands) {
  * @param {string} gcode The GCode string
  */
 function parseGcode(gcode) {
-  const gcodeNoComments = removeComments(gcode);
+  const strippedGCode = removeCommentsAndSpaces(gcode);
 
-  const commands = getCommands(gcodeNoComments, []);
+  const commands = getCommands(strippedGCode, []);
 
   return commands;
 }
