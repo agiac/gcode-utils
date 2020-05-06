@@ -100,7 +100,9 @@ describe("Test if the  GCode parser can handle:", () => {
   });
 
   test("Bad inputs", () => {
-    expect(Parser.parseGcode("G0 X21.4 saf Y2 G1 Z1.0 fa8f s23\n fa34 X1 G1 X1")).toEqual([
+    expect(
+      Parser.parseGcode("G0 X21.4 saf Y2 G1 Z1.0 fa8f s23\n fa34 X1 G1 X1")
+    ).toEqual([
       {
         command: "G0",
         params: { X: 21.4 },
