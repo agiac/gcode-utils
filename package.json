@@ -1,7 +1,7 @@
 {
   "name": "gcode-utils",
+  "description": "Simple G-code parser for Node and browser",
   "version": "1.0.0",
-  "description": "",
   "main": "dist/bundle.cjs.js",
   "module": "dist/bundle.esm.js",
   "sideEffects": false,
@@ -15,8 +15,22 @@
     "test:staged": "jest --findRelatedTests",
     "prepublishOnly": "npm run build"
   },
-  "author": "Alberto Maria Giachino",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AG89z/gcode-utils.git"
+  },
+  "keywords": [
+    "javascript",
+    "node",
+    "g-code",
+    "gcode"
+  ],
+  "author": "Alberto Giachino",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/AG89z/gcode-utils/issues"
+  },
+  "homepage": "https://github.com/AG89z/gcode-utils",
   "devDependencies": {
     "@babel/core": "^7.9.6",
     "@babel/preset-env": "^7.9.6",
