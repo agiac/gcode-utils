@@ -34,11 +34,7 @@ or via CDN
 ```javascript
 import GcodeUtils from "gcode-utils";
 
-const gcode = [
-  "G41; a comment here",
-  "G00 X1.1 Z1.1",
-  "T0303 M08"
-  ].join("\n");
+const gcode = ["G41;a comment", "G00 X1.1 Z1.1", "T0303 M08"].join("\n");
 
 const parsedGcode = GcodeUtils.GcodeParser.parseGcode(gcode);
 
