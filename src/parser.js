@@ -1,5 +1,5 @@
-const COMMAND_PARAM_RGX = /(?<type>[^GMTN\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+)/gi;
-const COMMAND_RGX = /(?<command>[GMT][^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*)[^\S\r\n]*((?<type>[^GMTN\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+))*/gi;
+const COMMAND_PARAM_RGX = /(?<type>[^GgMmTtNn\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*[^\S\r\n]*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+[^\S\r\n]*)/g;
+const COMMAND_RGX = /(?<command>[GgMmTt][^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*)[^\S\r\n]*((?<type>[^GgMmTtNn\W\d\s])(?<value>[^\S\r\n]*[+-]?[^\S\r\n]*\d+[^\S\r\n]*\.?[^\S\r\n]*\d*[^\S\r\n]*|[^\S\r\n]*[+-]?[^\S\r\n]*\.[^\S\r\n]*\d+[^\S\r\n]*))*/g;
 
 /**
  * @preserve
