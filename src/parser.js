@@ -12,41 +12,46 @@ function removeCommentsAndSpaces(gcode) {
 /**
  * @preserve
  * @param {string} command
- * @param {Object<string, number>} params
  * @returns {Object<string, number>}
  */
-function getParams(command, params) {
-  const match = COMMAND_PARAM_RGX.exec(command);
+function getParams(command) {
+  let match;
 
-  if (match === null) {
-    return params;
+  const params = {};
+
+  // eslint-disable-next-line no-cond-assign
+  while ((match = COMMAND_PARAM_RGX.exec(command)) !== null) {
+    const { type, value } = match.groups;
+
+    params[type.toUpperCase()] = +value;
   }
 
-  const { type, value } = match.groups;
-
-  return getParams(command, { ...params, [type.toUpperCase()]: +value });
+  // @ts-ignore
+  return params;
 }
 
 /**
  * @preserve
  * @param {string} gcode
- * @param {{command: string, params: Object<string, number>}[]} commands
  * @returns {{command: string, params: Object<string, number>}[]}
  */
-function getCommands(gcode, commands) {
-  const match = COMMAND_RGX.exec(gcode);
+function getCommands(gcode) {
+  let match;
 
-  if (match === null) {
-    return commands;
+  const commands = [];
+
+  // eslint-disable-next-line no-cond-assign
+  while ((match = COMMAND_RGX.exec(gcode)) !== null) {
+    const commandString = match[0];
+
+    const command = match.groups.command.toUpperCase().replace(/\s/g, "");
+
+    const params = getParams(commandString);
+
+    commands.push({ command, params });
   }
 
-  const commandString = match[0];
-
-  const command = match.groups.command.toUpperCase().replace(/\s/g, "");
-
-  const params = getParams(commandString, {});
-
-  return getCommands(gcode, [...commands, { command, params }]);
+  return commands;
 }
 
 /**
@@ -57,7 +62,7 @@ function getCommands(gcode, commands) {
 function parseGcode(gcode) {
   const strippedGcode = removeCommentsAndSpaces(gcode);
 
-  const commands = getCommands(strippedGcode, []);
+  const commands = getCommands(strippedGcode);
 
   return commands;
 }

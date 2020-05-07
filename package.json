@@ -6,14 +6,17 @@
   "module": "dist/bundle.esm.js",
   "sideEffects": false,
   "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "npm run build",
+    "postpublish": "git push origin --all; git push origin --tags",
     "prebuild": "rimraf ./dist",
     "build": "rollup -c",
-    "lint": "eslint \"**/*.js\"",
-    "lint:fix": "eslint \"**/*.js\" --fix",
     "test": "jest",
     "coverage": "jest --coverage",
     "test:staged": "jest --findRelatedTests",
-    "prepublishOnly": "npm run test && npm run build"
+    "lint": "eslint \"**/*.js\"",
+    "lint:fix": "eslint \"**/*.js\" --fix"
   },
   "repository": {
     "type": "git",
