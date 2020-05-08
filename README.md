@@ -9,8 +9,7 @@ Simple zero dependencies JavaScript G-code parser for Node JS and browser. Parse
     params:
       {
         // An object containing the parsed command parameters
-        X: number,
-        Y: number,
+        [x: string]: number,
         // ...
       }
   }

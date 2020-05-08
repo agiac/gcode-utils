@@ -9,7 +9,7 @@
     "preversion": "npm test",
     "postversion": "npm publish",
     "prepublishOnly": "npm run build",
-    "postpublish": "git push origin --all; git push origin --tags",
+    "postpublish": "git push; git push --tags",
     "prebuild": "rimraf ./dist",
     "build": "rollup -c",
     "test": "jest",

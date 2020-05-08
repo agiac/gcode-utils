@@ -2,6 +2,12 @@ const COMMAND_PARAM_RGX = /(?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?
 const COMMAND_RGX = /(?<command>[GgMmTt]\d+\.?\d*)((?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?\.\d+))*/g;
 
 /**
+ * @typedef {Object} Command
+ * @property {string} command
+ * @property {Object<string, number>} params
+ */
+
+/**
  * @preserve
  * @param {string} gcode
  */
@@ -33,7 +39,7 @@ function getParams(command) {
 /**
  * @preserve
  * @param {string} gcode
- * @returns {{command: string, params: Object<string, number>}[]}
+ * @returns {Command[]}
  */
 function getCommands(gcode) {
   let match;
