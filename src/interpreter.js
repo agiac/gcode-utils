@@ -13,11 +13,24 @@ import GcodeParser from "./parser.js";
  * @property {number} y
  * @property {number} z
  *
+ * @typedef {'GRBL' | 'RepRap'} Firmware
+ *
+ * @typedef {'ABSOLUTE' | 'RELATIVE'} DistanceMode
+ *
+ * @typedef {'G0' | 'G1'} TravelMode
+ *
  * @typedef {Object} MachineState
  * @property {Position} position
  * @property {Position} home
- * @property {'ABSOLUTE' | 'RELATIVE'} distanceMode
- * @property {number} feedRate
+ * @property {DistanceMode} distanceMode
+ * @property {TravelMode} travelMode
+ * @property {number} feedRateG0
+ * @property {number} feedRateG1
+ * @property {number} laserPower
+ * @property {number} extrusion
+ *
+ * @typedef {Object} Settings
+ * @property {Firmware} firmware
  */
 
 /**
@@ -35,8 +48,26 @@ const defaultState = {
     z: 0,
   },
   distanceMode: "ABSOLUTE",
-  feedRate: 1000,
+  travelMode: "G0",
+  feedRateG0: 1000,
+  feedRateG1: 1000,
+  laserPower: 0,
+  extrusion: 0,
 };
+
+/**
+ * @type {Settings}
+ */
+const defaultSettings = {
+  firmware: "RepRap",
+};
+
+/**
+ * @param {Firmware} firmware
+ */
+function isAnyFirmare(firmware) {
+  return firmware === "GRBL" || firmware === "RepRap";
+}
 
 /**
  * @param {number} number
@@ -48,7 +79,7 @@ function isNumber(number) {
 /**
  * @param {Position} position
  * @param {Position} previousPosition
- * @param {'ABSOLUTE' | 'RELATIVE'} mode
+ * @param {DistanceMode} mode
  */
 function interpretMove(position, previousPosition, mode) {
   if (mode === "ABSOLUTE") {
@@ -67,15 +98,37 @@ function interpretMove(position, previousPosition, mode) {
     };
   }
 
-  throw new Error("Unknown distance mode");
+  throw new Error(`Unknown distance mode: ${mode}`);
+}
+
+/**
+ * @param {number} extrusion
+ * @param {number} previousExtrusion
+ * @param {DistanceMode} mode
+ */
+function interpretExtrusion(extrusion, previousExtrusion, mode) {
+  if (mode === "RELATIVE") {
+    return (previousExtrusion || 0) + (extrusion || 0);
+  }
+
+  if (mode === "ABSOLUTE") {
+    return isNumber(extrusion) ? extrusion : previousExtrusion;
+  }
+
+  throw new Error(`Unknown distance mode: ${mode}`);
 }
 
 /**
  * @param {Command} command
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation, MachineState]}
  */
-function interpretG0(command, state) {
+function interpretG0(command, state, settings) {
+  if (!isAnyFirmare(settings.firmware)) {
+    throw new Error(`Unknown firmware: ${settings.firmware}`);
+  }
+
   const moveTo = {
     x: command.params.X,
     y: command.params.Y,
@@ -84,7 +137,11 @@ function interpretG0(command, state) {
 
   const position = interpretMove(moveTo, state.position, state.distanceMode);
 
-  const speed = command.params.F || state.feedRate;
+  const speed = command.params.F || state.feedRateG0;
+
+  const laserPower = 0;
+
+  const extrusion = 0;
 
   return [
     {
@@ -98,7 +155,10 @@ function interpretG0(command, state) {
     {
       ...state,
       position,
-      feedRate: speed,
+      travelMode: "G0",
+      feedRateG0: speed,
+      laserPower,
+      extrusion,
     },
   ];
 }
@@ -106,9 +166,14 @@ function interpretG0(command, state) {
 /**
  * @param {Command} command
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation, MachineState]}
  */
-function interpretG1(command, state) {
+function interpretG1(command, state, settings) {
+  if (!isAnyFirmare(settings.firmware)) {
+    throw new Error(`Unknown firmware: ${settings.firmware}`);
+  }
+
   const moveTo = {
     x: command.params.X,
     y: command.params.Y,
@@ -117,7 +182,15 @@ function interpretG1(command, state) {
 
   const position = interpretMove(moveTo, state.position, state.distanceMode);
 
-  const speed = command.params.F || state.feedRate;
+  const speed = command.params.F || state.feedRateG1;
+
+  const laserPower = command.params.S || state.laserPower;
+
+  const extrusion = interpretExtrusion(
+    command.params.E,
+    state.extrusion,
+    state.distanceMode
+  );
 
   return [
     {
@@ -131,16 +204,24 @@ function interpretG1(command, state) {
     {
       ...state,
       position,
-      feedRate: speed,
+      travelMode: "G1",
+      feedRateG1: speed,
+      laserPower,
+      extrusion,
     },
   ];
 }
 
 /**
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation, MachineState]}
  */
-function interpretG90(state) {
+function interpretG90(state, settings) {
+  if (!isAnyFirmare(settings.firmware)) {
+    throw new Error(`Unknown firmware: ${settings.firmware}`);
+  }
+
   return [
     null,
     {
@@ -152,9 +233,14 @@ function interpretG90(state) {
 
 /**
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation, MachineState]}
  */
-function interpretG91(state) {
+function interpretG91(state, settings) {
+  if (!isAnyFirmare(settings.firmware)) {
+    throw new Error(`Unknown firmware: ${settings.firmware}`);
+  }
+
   return [
     null,
     {
@@ -165,46 +251,110 @@ function interpretG91(state) {
 }
 
 /**
+ * @param {Command} command
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation, MachineState]}
  */
-function interpretG28(state) {
-  return [
-    {
-      operation: "MOVE_TO",
-      props: {
-        from: state.position,
-        to: state.home,
-        speed: state.feedRate,
+function interpretG28(command, state, settings) {
+  if (settings.firmware === "RepRap") {
+    // TODO Handle parameters
+    return [
+      {
+        operation: "MOVE_TO",
+        props: {
+          from: state.position,
+          to: { x: 0, y: 0, z: 0 },
+          speed: state.feedRateG0,
+        },
       },
-    },
-    {
-      ...state,
-      position: state.home,
-    },
-  ];
+      {
+        ...state,
+        position: { x: 0, y: 0, z: 0 },
+      },
+    ];
+  }
+  if (settings.firmware === "GRBL") {
+    // TODO Handle parameters
+    return [
+      {
+        operation: "MOVE_TO",
+        props: {
+          from: state.position,
+          to: state.home,
+          speed: state.feedRateG0,
+        },
+      },
+      {
+        ...state,
+        position: state.home,
+      },
+    ];
+  }
+
+  throw new Error(`Unknown firmware: ${settings.firmware}`);
 }
 
 /**
  * @param {Command} command
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation, MachineState]}
  */
-function interpretCommand(command, state = defaultState) {
+function interpretG92(command, state, settings) {
+  if (settings.firmware === "RepRap") {
+    // TODO Handle parameters
+    return [
+      null,
+      {
+        ...state,
+        position: {
+          x: isNumber(command.params.X) ? command.params.X : state.position.x,
+          y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
+          z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
+        },
+        extrusion: isNumber(command.params.E)
+          ? command.params.E
+          : state.extrusion,
+      },
+    ];
+  }
+  if (settings.firmware === "GRBL") {
+    // TODO
+    return [null, state];
+  }
+
+  throw new Error(`Unknown firmware: ${settings.firmware}`);
+}
+
+/**
+ * @param {Command} command
+ * @param {MachineState} state
+ * @param {Settings} settings
+ * @returns {[Operation, MachineState]}
+ */
+function interpretCommand(
+  command,
+  state = defaultState,
+  settings = defaultSettings
+) {
   if (command.command === "G0" || command.command === "G00") {
-    return interpretG0(command, state);
+    return interpretG0(command, state, settings);
   }
   if (command.command === "G1" || command.command === "G01") {
-    return interpretG1(command, state);
+    return interpretG1(command, state, settings);
   }
   if (command.command === "G90") {
-    return interpretG90(state);
+    return interpretG90(state, settings);
   }
   if (command.command === "G91") {
-    return interpretG91(state);
+    return interpretG91(state, settings);
   }
   if (command.command === "G28") {
-    return interpretG28(state);
+    return interpretG28(command, state, settings);
+  }
+  if (command.command === "G92") {
+    return interpretG92(command, state, settings);
   }
   return [undefined, state];
 }
@@ -213,12 +363,21 @@ function interpretCommand(command, state = defaultState) {
  * @preserve
  * @param {Command[]} commands
  * @param {MachineState} state
+ * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretCommands(commands, state = defaultState) {
+function interpretCommands(
+  commands,
+  state = defaultState,
+  settings = defaultSettings
+) {
   return commands.reduce(
     ([operations, currentState], command) => {
-      const [operation, newState] = interpretCommand(command, currentState);
+      const [operation, newState] = interpretCommand(
+        command,
+        currentState,
+        settings
+      );
       return [operation ? [...operations, operation] : operations, newState];
     },
     [[], state]
@@ -238,9 +397,11 @@ function interpretGcode(gcode, state = defaultState) {
 /**
  * @preserve
  * @param {MachineState} state
+ * @param {Settings} settings
  */
-function createProcessor(state = defaultState) {
+function createProcessor(state = defaultState, settings = defaultSettings) {
   let mState = state;
+  let mSettings = settings;
   return Object.freeze({
     /**
      * @oreserve
@@ -249,7 +410,11 @@ function createProcessor(state = defaultState) {
     processGcode(gcode) {
       const parsed = GcodeParser.parseGcode(gcode);
 
-      const [operations, newState] = interpretCommands(parsed, mState);
+      const [operations, newState] = interpretCommands(
+        parsed,
+        mState,
+        mSettings
+      );
 
       mState = newState;
 
@@ -259,8 +424,9 @@ function createProcessor(state = defaultState) {
      * @preserve
      * @param {MachineState} newState
      */
-    reset(newState = defaultState) {
+    reset(newState = defaultState, newSettings = defaultSettings) {
       mState = newState;
+      mSettings = newSettings;
     },
     get state() {
       return mState;
