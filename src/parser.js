@@ -65,7 +65,7 @@ function getCommands(gcode) {
  * @preserve
  * @param {string} gcode The Gcode string
  */
-function parseGcode(gcode) {
+export function parseGcode(gcode) {
   const strippedGcode = removeCommentsAndSpaces(gcode);
 
   const commands = getCommands(strippedGcode);

@@ -1,4 +1,4 @@
-import GcodeParser from "./parser.js";
+import { parseGcode } from "./parser";
 
 /**
  * @preserve
@@ -20,14 +20,14 @@ import GcodeParser from "./parser.js";
  * @typedef {'G0' | 'G1'} TravelMode
  *
  * @typedef {Object} MachineState
- * @property {Position} position
- * @property {Position} home
- * @property {DistanceMode} distanceMode
- * @property {TravelMode} travelMode
- * @property {number} feedRateG0
- * @property {number} feedRateG1
- * @property {number} laserPower
- * @property {number} extrusion
+ * @property {Position} [position]
+ * @property {Position} [home]
+ * @property {DistanceMode} [distanceMode]
+ * @property {TravelMode} [travelMode]
+ * @property {number} [feedRateG0]
+ * @property {number} [feedRateG1]
+ * @property {number} [laserPower]
+ * @property {number} [extrusion]
  *
  * @typedef {Object} Settings
  * @property {Firmware} firmware
@@ -82,14 +82,6 @@ function isNumber(number) {
  * @param {DistanceMode} mode
  */
 function interpretMove(position, previousPosition, mode) {
-  if (mode === "ABSOLUTE") {
-    return {
-      x: isNumber(position.x) ? position.x : previousPosition.x,
-      y: isNumber(position.y) ? position.y : previousPosition.y,
-      z: isNumber(position.z) ? position.z : previousPosition.z,
-    };
-  }
-
   if (mode === "RELATIVE") {
     return {
       x: (previousPosition.x || 0) + (position.x || 0),
@@ -98,7 +90,11 @@ function interpretMove(position, previousPosition, mode) {
     };
   }
 
-  throw new Error(`Unknown distance mode: ${mode}`);
+  return {
+    x: isNumber(position.x) ? position.x : previousPosition.x,
+    y: isNumber(position.y) ? position.y : previousPosition.y,
+    z: isNumber(position.z) ? position.z : previousPosition.z,
+  };
 }
 
 /**
@@ -111,24 +107,15 @@ function interpretExtrusion(extrusion, previousExtrusion, mode) {
     return (previousExtrusion || 0) + (extrusion || 0);
   }
 
-  if (mode === "ABSOLUTE") {
-    return isNumber(extrusion) ? extrusion : previousExtrusion;
-  }
-
-  throw new Error(`Unknown distance mode: ${mode}`);
+  return isNumber(extrusion) ? extrusion : previousExtrusion;
 }
 
 /**
  * @param {Command} command
  * @param {MachineState} state
- * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretG0(command, state, settings) {
-  if (!isAnyFirmare(settings.firmware)) {
-    throw new Error(`Unknown firmware: ${settings.firmware}`);
-  }
-
+function interpretG0(command, state) {
   const moveTo = {
     x: command.params.X,
     y: command.params.Y,
@@ -168,14 +155,9 @@ function interpretG0(command, state, settings) {
 /**
  * @param {Command} command
  * @param {MachineState} state
- * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretG1(command, state, settings) {
-  if (!isAnyFirmare(settings.firmware)) {
-    throw new Error(`Unknown firmware: ${settings.firmware}`);
-  }
-
+function interpretG1(command, state) {
   const moveTo = {
     x: command.params.X,
     y: command.params.Y,
@@ -202,6 +184,7 @@ function interpretG1(command, state, settings) {
           from: state.position,
           to: position,
           speed,
+          extrusion: extrusion - state.extrusion,
         },
       },
     ],
@@ -218,14 +201,9 @@ function interpretG1(command, state, settings) {
 
 /**
  * @param {MachineState} state
- * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretG90(state, settings) {
-  if (!isAnyFirmare(settings.firmware)) {
-    throw new Error(`Unknown firmware: ${settings.firmware}`);
-  }
-
+function interpretG90(state) {
   return [
     [],
     {
@@ -237,14 +215,9 @@ function interpretG90(state, settings) {
 
 /**
  * @param {MachineState} state
- * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretG91(state, settings) {
-  if (!isAnyFirmare(settings.firmware)) {
-    throw new Error(`Unknown firmware: ${settings.firmware}`);
-  }
-
+function interpretG91(state) {
   return [
     [],
     {
@@ -262,7 +235,6 @@ function interpretG91(state, settings) {
  */
 function interpretG28(command, state, settings) {
   if (settings.firmware === "RepRap") {
-    // TODO Handle parameters
     const goTo = {
       x: isNumber(command.params.X) ? 0 : state.position.x,
       y: isNumber(command.params.Y) ? 0 : state.position.y,
@@ -321,8 +293,7 @@ function interpretG28(command, state, settings) {
       },
     ];
   }
-
-  throw new Error(`Unknown firmware: ${settings.firmware}`);
+  return [[], state];
 }
 
 /**
@@ -385,22 +356,18 @@ function interpretG92(command, state, settings) {
  * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretCommand(
-  command,
-  state = defaultState,
-  settings = defaultSettings
-) {
+function interpretCommand(command, state, settings) {
   if (command.command === "G0" || command.command === "G00") {
-    return interpretG0(command, state, settings);
+    return interpretG0(command, state);
   }
   if (command.command === "G1" || command.command === "G01") {
-    return interpretG1(command, state, settings);
+    return interpretG1(command, state);
   }
   if (command.command === "G90") {
-    return interpretG90(state, settings);
+    return interpretG90(state);
   }
   if (command.command === "G91") {
-    return interpretG91(state, settings);
+    return interpretG91(state);
   }
   if (command.command === "G28") {
     return interpretG28(command, state, settings);
@@ -421,24 +388,29 @@ function interpretCommand(
  * @param {Settings} settings
  * @returns {[Operation[], MachineState]}
  */
-function interpretCommands(
+export function interpretCommands(
   commands,
   state = defaultState,
   settings = defaultSettings
 ) {
+  // Check passed settings
+  if (!isAnyFirmare(settings.firmware)) {
+    throw new Error(`Unknown firmware: ${settings.firmware}`);
+  }
+
   return commands.reduce(
     ([operations, currentState], command) => {
       const [newOperations, newState] = interpretCommand(
         command,
         currentState,
-        settings
+        { ...defaultSettings, ...settings }
       );
       return [
         newOperations.length ? [...operations, ...newOperations] : operations,
         newState,
       ];
     },
-    [[], state]
+    [[], { ...defaultState, ...state }]
   );
 }
 
@@ -446,27 +418,35 @@ function interpretCommands(
  * @preserve
  * @param {string} gcode
  * @param {MachineState} state
+ * @param {Settings} settings
  * @return {[Operation[], MachineState]}
  */
-function interpretGcode(gcode, state = defaultState) {
-  return interpretCommands(GcodeParser.parseGcode(gcode), state);
+export function interpretGcode(
+  gcode,
+  state = defaultState,
+  settings = defaultSettings
+) {
+  return interpretCommands(
+    parseGcode(gcode),
+    { ...defaultState, ...state },
+    { ...defaultSettings, ...settings }
+  );
 }
 
 /**
  * @preserve
- * @param {MachineState} state
- * @param {Settings} settings
+ * @param {{state?: MachineState, settings?: Settings}} [params={}]
  */
-function createProcessor(state = defaultState, settings = defaultSettings) {
-  let mState = state;
-  let mSettings = settings;
+export function createProcessor({ state, settings }) {
+  let mState = { ...defaultState, ...state };
+  let mSettings = { ...defaultSettings, ...settings };
   return Object.freeze({
     /**
      * @oreserve
      * @param {string} gcode
      */
     processGcode(gcode) {
-      const parsed = GcodeParser.parseGcode(gcode);
+      const parsed = parseGcode(gcode);
 
       const [operations, newState] = interpretCommands(
         parsed,
@@ -493,25 +473,3 @@ function createProcessor(state = defaultState, settings = defaultSettings) {
 }
 
 export default { createProcessor, interpretGcode, interpretCommands };
-
-const test = `; relative mode
-G91
-G1 Z1; up one millimeter
-G28 X0 Y0; home X and Y axes
-; absolute mode
-G90
-G1 X117.5 Y125. F8000; go to the center (modify according to your printer)
-G1 Z0; go to height 0
-T0; select extruder 1
-G92 E0; reset extruder position to 0`;
-
-const processor = createProcessor();
-const operations = processor.processGcode(test);
-
-console.log(
-  operations.map((operation) => ({
-    operation: operation.operation,
-    ...operation.props,
-  }))
-);
-console.log(processor.state);
