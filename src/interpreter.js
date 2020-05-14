@@ -122,7 +122,7 @@ function interpretExtrusion(extrusion, previousExtrusion, mode) {
  * @param {Command} command
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
  */
 function interpretG0(command, state, settings) {
   if (!isAnyFirmare(settings.firmware)) {
@@ -144,14 +144,16 @@ function interpretG0(command, state, settings) {
   const extrusion = 0;
 
   return [
-    {
-      operation: "MOVE_TO",
-      props: {
-        from: state.position,
-        to: position,
-        speed,
+    [
+      {
+        operation: "MOVE_TO",
+        props: {
+          from: state.position,
+          to: position,
+          speed,
+        },
       },
-    },
+    ],
     {
       ...state,
       position,
@@ -167,7 +169,7 @@ function interpretG0(command, state, settings) {
  * @param {Command} command
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
  */
 function interpretG1(command, state, settings) {
   if (!isAnyFirmare(settings.firmware)) {
@@ -193,14 +195,16 @@ function interpretG1(command, state, settings) {
   );
 
   return [
-    {
-      operation: "MOVE_TO",
-      props: {
-        from: state.position,
-        to: position,
-        speed,
+    [
+      {
+        operation: "MOVE_TO",
+        props: {
+          from: state.position,
+          to: position,
+          speed,
+        },
       },
-    },
+    ],
     {
       ...state,
       position,
@@ -215,7 +219,7 @@ function interpretG1(command, state, settings) {
 /**
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
  */
 function interpretG90(state, settings) {
   if (!isAnyFirmare(settings.firmware)) {
@@ -223,7 +227,7 @@ function interpretG90(state, settings) {
   }
 
   return [
-    null,
+    [],
     {
       ...state,
       distanceMode: "ABSOLUTE",
@@ -234,7 +238,7 @@ function interpretG90(state, settings) {
 /**
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
  */
 function interpretG91(state, settings) {
   if (!isAnyFirmare(settings.firmware)) {
@@ -242,7 +246,7 @@ function interpretG91(state, settings) {
   }
 
   return [
-    null,
+    [],
     {
       ...state,
       distanceMode: "RELATIVE",
@@ -254,40 +258,66 @@ function interpretG91(state, settings) {
  * @param {Command} command
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
  */
 function interpretG28(command, state, settings) {
   if (settings.firmware === "RepRap") {
     // TODO Handle parameters
+    const goTo = {
+      x: isNumber(command.params.X) ? 0 : state.position.x,
+      y: isNumber(command.params.Y) ? 0 : state.position.y,
+      z: isNumber(command.params.Z) ? 0 : state.position.z,
+    };
     return [
-      {
-        operation: "MOVE_TO",
-        props: {
-          from: state.position,
-          to: { x: 0, y: 0, z: 0 },
-          speed: state.feedRateG0,
+      [
+        {
+          operation: "MOVE_TO",
+          props: {
+            from: state.position,
+            to: goTo,
+            speed: state.feedRateG0,
+          },
         },
-      },
+      ],
       {
         ...state,
-        position: { x: 0, y: 0, z: 0 },
+        position: goTo,
       },
     ];
   }
   if (settings.firmware === "GRBL") {
-    // TODO Handle parameters
+    const moveTo = {
+      x: isNumber(command.params.X) ? command.params.X : state.position.x,
+      y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
+      z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
+    };
+    const homeTo = {
+      x: isNumber(command.params.X) ? state.home.x : moveTo.x,
+      y: isNumber(command.params.Y) ? state.home.y : moveTo.y,
+      z: isNumber(command.params.Z) ? state.home.z : moveTo.z,
+    };
     return [
-      {
-        operation: "MOVE_TO",
-        props: {
-          from: state.position,
-          to: state.home,
-          speed: state.feedRateG0,
+      [
+        {
+          operation: "MOVE_TO",
+          props: {
+            from: state.position,
+            to: moveTo,
+            speed: state.feedRateG0,
+          },
         },
-      },
+        {
+          operation: "MOVE_TO",
+          props: {
+            from: moveTo,
+            to: homeTo,
+            speed: state.feedRateG0,
+          },
+        },
+      ],
       {
         ...state,
-        position: state.home,
+        position: homeTo,
       },
     ];
   }
@@ -299,13 +329,35 @@ function interpretG28(command, state, settings) {
  * @param {Command} command
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
+ */
+function interpretG28p1(command, state, settings) {
+  if (settings.firmware === "GRBL") {
+    return [
+      [],
+      {
+        ...state,
+        home: {
+          x: isNumber(command.params.X) ? command.params.X : state.home.x,
+          y: isNumber(command.params.Y) ? command.params.Y : state.home.y,
+          z: isNumber(command.params.Z) ? command.params.Z : state.home.z,
+        },
+      },
+    ];
+  }
+  return [[], state];
+}
+
+/**
+ * @param {Command} command
+ * @param {MachineState} state
+ * @param {Settings} settings
+ * @returns {[Operation[], MachineState]}
  */
 function interpretG92(command, state, settings) {
   if (settings.firmware === "RepRap") {
-    // TODO Handle parameters
     return [
-      null,
+      [],
       {
         ...state,
         position: {
@@ -331,7 +383,7 @@ function interpretG92(command, state, settings) {
  * @param {Command} command
  * @param {MachineState} state
  * @param {Settings} settings
- * @returns {[Operation, MachineState]}
+ * @returns {[Operation[], MachineState]}
  */
 function interpretCommand(
   command,
@@ -353,10 +405,13 @@ function interpretCommand(
   if (command.command === "G28") {
     return interpretG28(command, state, settings);
   }
+  if (command.command === "G28.1") {
+    return interpretG28p1(command, state, settings);
+  }
   if (command.command === "G92") {
     return interpretG92(command, state, settings);
   }
-  return [undefined, state];
+  return [[], state];
 }
 
 /**
@@ -373,12 +428,15 @@ function interpretCommands(
 ) {
   return commands.reduce(
     ([operations, currentState], command) => {
-      const [operation, newState] = interpretCommand(
+      const [newOperations, newState] = interpretCommand(
         command,
         currentState,
         settings
       );
-      return [operation ? [...operations, operation] : operations, newState];
+      return [
+        newOperations.length ? [...operations, ...newOperations] : operations,
+        newState,
+      ];
     },
     [[], state]
   );
