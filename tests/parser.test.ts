@@ -1,4 +1,4 @@
-import Parser from "./parser";
+import Parser from "../src/parser";
 
 describe("Test if the  Gcode parser can handle:", () => {
   test("Single commands", () => {

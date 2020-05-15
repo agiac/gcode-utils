@@ -1,4 +1,4 @@
-import { createProcessor, interpretGcode } from "./interpreter";
+import { createProcessor, interpretGcode } from "../src/interpreter";
 
 describe("Test the  Gcode interpreter for:", () => {
   describe("RepRap firmware:", () => {
