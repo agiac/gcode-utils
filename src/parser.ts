@@ -9,7 +9,7 @@ export interface Command {
 }
 
 function removeCommentsAndSpaces(gcode: string) {
-  return gcode.replace(/;.*|\(.*\)|\s/gm, "");
+  return gcode.replace(/;.*|\(.*\)|\s/gm, '');
 }
 
 function getParams(command: string) {
@@ -36,7 +36,7 @@ function getCommands(gcode: string) {
   while ((match = COMMAND_RGX.exec(gcode)) !== null) {
     const commandString = match[0];
 
-    const command = match.groups!.command.toUpperCase().replace(/\s/g, "");
+    const command = match.groups!.command.toUpperCase().replace(/\s/g, '');
 
     const params = getParams(commandString);
 
