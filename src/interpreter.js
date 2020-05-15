@@ -1,7 +1,7 @@
 import { parseGcode } from "./parser";
 
 /**
- * @preserve
+ *
  * @typedef {import('./parser').Command} Command
  *
  * @typedef {Object} Operation
@@ -382,7 +382,7 @@ function interpretCommand(command, state, settings) {
 }
 
 /**
- * @preserve
+ *
  * @param {Command[]} commands
  * @param {MachineState} state
  * @param {Settings} settings
@@ -415,7 +415,7 @@ export function interpretCommands(
 }
 
 /**
- * @preserve
+ *
  * @param {string} gcode
  * @param {MachineState} state
  * @param {Settings} settings
@@ -434,7 +434,7 @@ export function interpretGcode(
 }
 
 /**
- * @preserve
+ *
  * @param {{state?: MachineState, settings?: Settings}} [settings={}]
  */
 export function createProcessor(settings = {}) {
@@ -459,7 +459,7 @@ export function createProcessor(settings = {}) {
       return operations;
     },
     /**
-     * @preserve
+     *
      * @param {MachineState} newState
      */
     reset(newState = defaultState, newSettings = defaultSettings) {

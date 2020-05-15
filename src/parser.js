@@ -8,7 +8,7 @@ const COMMAND_RGX = /(?<command>[GgMmTt]\d+\.?\d*)((?<type>[^GgMmTtNn\W\d])(?<va
  */
 
 /**
- * @preserve
+ *
  * @param {string} gcode
  */
 function removeCommentsAndSpaces(gcode) {
@@ -16,7 +16,7 @@ function removeCommentsAndSpaces(gcode) {
 }
 
 /**
- * @preserve
+ *
  * @param {string} command
  * @returns {Object<string, number>}
  */
@@ -37,7 +37,7 @@ function getParams(command) {
 }
 
 /**
- * @preserve
+ *
  * @param {string} gcode
  * @returns {Command[]}
  */
@@ -62,7 +62,7 @@ function getCommands(gcode) {
 
 /**
  * Parses a Gcode string, removing any comment, and returns an array of commands
- * @preserve
+ *
  * @param {string} gcode The Gcode string
  */
 export function parseGcode(gcode) {
