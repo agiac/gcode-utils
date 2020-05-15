@@ -1,42 +1,38 @@
-import { parseGcode } from "./parser";
+import { parseGcode, Command } from "./parser";
 
-/**
- *
- * @typedef {import('./parser').Command} Command
- *
- * @typedef {Object} Operation
- * @property {string} operation
- * @property {Object} props
- *
- * @typedef {Object} Position
- * @property {number} x
- * @property {number} y
- * @property {number} z
- *
- * @typedef {'GRBL' | 'RepRap'} Firmware
- *
- * @typedef {'ABSOLUTE' | 'RELATIVE'} DistanceMode
- *
- * @typedef {'G0' | 'G1'} TravelMode
- *
- * @typedef {Object} MachineState
- * @property {Position} [position]
- * @property {Position} [home]
- * @property {DistanceMode} [distanceMode]
- * @property {TravelMode} [travelMode]
- * @property {number} [feedRateG0]
- * @property {number} [feedRateG1]
- * @property {number} [laserPower]
- * @property {number} [extrusion]
- *
- * @typedef {Object} Settings
- * @property {Firmware} firmware
- */
+declare interface Operation {
+  operation: string;
+  props: any;
+}
 
-/**
- * @type {MachineState}
- */
-const defaultState = {
+declare interface Position {
+  x: number;
+  y: number;
+  z: number;
+}
+
+declare interface MachineState {
+  position: Position;
+  home: Position;
+  distanceMode: "ABSOLUTE" | "RELATIVE";
+  travelMode: "G0" | "G1";
+  feedRateG0: number;
+  feedRateG1: number;
+  laserPower: number;
+  extrusion: number;
+}
+
+declare interface Processor {
+  processGcode: (gcode: string) => Operation[];
+  reset: (state?: MachineState, settings?: Settings) => void;
+  readonly state: MachineState;
+}
+
+declare interface Settings {
+  firmware: "GRBL" | "RepRap";
+}
+
+const defaultState: Readonly<MachineState> = Object.freeze({
   position: {
     x: 0,
     y: 0,
@@ -53,35 +49,30 @@ const defaultState = {
   feedRateG1: 1000,
   laserPower: 0,
   extrusion: 0,
-};
+});
 
-/**
- * @type {Settings}
- */
-const defaultSettings = {
+const defaultSettings: Readonly<Settings> = Object.freeze({
   firmware: "RepRap",
-};
+});
 
-/**
- * @param {Firmware} firmware
- */
-function isAnyFirmare(firmware) {
+function isAnyFirmare(firmware: Settings["firmware"]) {
   return firmware === "GRBL" || firmware === "RepRap";
 }
 
-/**
- * @param {number} number
- */
-function isNumber(number) {
-  return number !== null && number !== undefined && !Number.isNaN(number);
+function isNumber(number: unknown) {
+  return (
+    number !== null &&
+    number !== undefined &&
+    typeof number === "number" &&
+    !Number.isNaN(number)
+  );
 }
 
-/**
- * @param {Position} position
- * @param {Position} previousPosition
- * @param {DistanceMode} mode
- */
-function interpretMove(position, previousPosition, mode) {
+function interpretMove(
+  position: Position,
+  previousPosition: Position,
+  mode: MachineState["distanceMode"]
+): Position {
   if (mode === "RELATIVE") {
     return {
       x: (previousPosition.x || 0) + (position.x || 0),
@@ -97,12 +88,11 @@ function interpretMove(position, previousPosition, mode) {
   };
 }
 
-/**
- * @param {number} extrusion
- * @param {number} previousExtrusion
- * @param {DistanceMode} mode
- */
-function interpretExtrusion(extrusion, previousExtrusion, mode) {
+function interpretExtrusion(
+  extrusion: number,
+  previousExtrusion: number,
+  mode: MachineState["distanceMode"]
+) {
   if (mode === "RELATIVE") {
     return (previousExtrusion || 0) + (extrusion || 0);
   }
@@ -110,12 +100,10 @@ function interpretExtrusion(extrusion, previousExtrusion, mode) {
   return isNumber(extrusion) ? extrusion : previousExtrusion;
 }
 
-/**
- * @param {Command} command
- * @param {MachineState} state
- * @returns {[Operation[], MachineState]}
- */
-function interpretG0(command, state) {
+function interpretG0(
+  command: Command,
+  state: MachineState
+): [Operation[], MachineState] {
   const moveTo = {
     x: command.params.X,
     y: command.params.Y,
@@ -152,12 +140,10 @@ function interpretG0(command, state) {
   ];
 }
 
-/**
- * @param {Command} command
- * @param {MachineState} state
- * @returns {[Operation[], MachineState]}
- */
-function interpretG1(command, state) {
+function interpretG1(
+  command: Command,
+  state: MachineState
+): [Operation[], MachineState] {
   const moveTo = {
     x: command.params.X,
     y: command.params.Y,
@@ -199,11 +185,7 @@ function interpretG1(command, state) {
   ];
 }
 
-/**
- * @param {MachineState} state
- * @returns {[Operation[], MachineState]}
- */
-function interpretG90(state) {
+function interpretG90(state: MachineState): [Operation[], MachineState] {
   return [
     [],
     {
@@ -213,11 +195,7 @@ function interpretG90(state) {
   ];
 }
 
-/**
- * @param {MachineState} state
- * @returns {[Operation[], MachineState]}
- */
-function interpretG91(state) {
+function interpretG91(state: MachineState): [Operation[], MachineState] {
   return [
     [],
     {
@@ -227,13 +205,11 @@ function interpretG91(state) {
   ];
 }
 
-/**
- * @param {Command} command
- * @param {MachineState} state
- * @param {Settings} settings
- * @returns {[Operation[], MachineState]}
- */
-function interpretG28(command, state, settings) {
+function interpretG28(
+  command: Command,
+  state: MachineState,
+  settings: Settings
+): [Operation[], MachineState] {
   if (settings.firmware === "RepRap") {
     const goTo = {
       x: isNumber(command.params.X) ? 0 : state.position.x,
@@ -296,13 +272,11 @@ function interpretG28(command, state, settings) {
   return [[], state];
 }
 
-/**
- * @param {Command} command
- * @param {MachineState} state
- * @param {Settings} settings
- * @returns {[Operation[], MachineState]}
- */
-function interpretG28p1(command, state, settings) {
+function interpretG28p1(
+  command: Command,
+  state: MachineState,
+  settings: Settings
+): [Operation[], MachineState] {
   if (settings.firmware === "GRBL") {
     return [
       [],
@@ -319,13 +293,11 @@ function interpretG28p1(command, state, settings) {
   return [[], state];
 }
 
-/**
- * @param {Command} command
- * @param {MachineState} state
- * @param {Settings} settings
- * @returns {[Operation[], MachineState]}
- */
-function interpretG92(command, state, settings) {
+function interpretG92(
+  command: Command,
+  state: MachineState,
+  settings: Settings
+): [Operation[], MachineState] {
   if (settings.firmware === "RepRap") {
     return [
       [],
@@ -344,19 +316,17 @@ function interpretG92(command, state, settings) {
   }
   if (settings.firmware === "GRBL") {
     // TODO
-    return [null, state];
+    return [[], state];
   }
 
   throw new Error(`Unknown firmware: ${settings.firmware}`);
 }
 
-/**
- * @param {Command} command
- * @param {MachineState} state
- * @param {Settings} settings
- * @returns {[Operation[], MachineState]}
- */
-function interpretCommand(command, state, settings) {
+function interpretCommand(
+  command: Command,
+  state: MachineState,
+  settings: Settings
+): [Operation[], MachineState] {
   if (command.command === "G0" || command.command === "G00") {
     return interpretG0(command, state);
   }
@@ -381,19 +351,11 @@ function interpretCommand(command, state, settings) {
   return [[], state];
 }
 
-/**
- *
- * @param {Command[]} commands
- * @param {MachineState} state
- * @param {Settings} settings
- * @returns {[Operation[], MachineState]}
- */
 export function interpretCommands(
-  commands,
+  commands: Command[],
   state = defaultState,
   settings = defaultSettings
-) {
-  // Check passed settings
+): [Operation[], MachineState] {
   if (!isAnyFirmare(settings.firmware)) {
     throw new Error(`Unknown firmware: ${settings.firmware}`);
   }
@@ -410,22 +372,15 @@ export function interpretCommands(
         newState,
       ];
     },
-    [[], { ...defaultState, ...state }]
+    [[] as Operation[], { ...defaultState, ...state } as MachineState]
   );
 }
 
-/**
- *
- * @param {string} gcode
- * @param {MachineState} state
- * @param {Settings} settings
- * @return {[Operation[], MachineState]}
- */
 export function interpretGcode(
-  gcode,
+  gcode: string,
   state = defaultState,
   settings = defaultSettings
-) {
+): [Operation[], MachineState] {
   return interpretCommands(
     parseGcode(gcode),
     { ...defaultState, ...state },
@@ -433,19 +388,13 @@ export function interpretGcode(
   );
 }
 
-/**
- *
- * @param {{state?: MachineState, settings?: Settings}} [settings={}]
- */
-export function createProcessor(settings = {}) {
+export function createProcessor(
+  settings: { state?: MachineState; settings?: Settings } = {}
+) {
   let mState = { ...defaultState, ...settings.state };
   let mSettings = { ...defaultSettings, ...settings.settings };
   return Object.freeze({
-    /**
-     * @oreserve
-     * @param {string} gcode
-     */
-    processGcode(gcode) {
+    processGcode(gcode: string) {
       const parsed = parseGcode(gcode);
 
       const [operations, newState] = interpretCommands(
@@ -458,10 +407,6 @@ export function createProcessor(settings = {}) {
 
       return operations;
     },
-    /**
-     *
-     * @param {MachineState} newState
-     */
     reset(newState = defaultState, newSettings = defaultSettings) {
       mState = newState;
       mSettings = newSettings;

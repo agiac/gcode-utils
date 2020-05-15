@@ -1,56 +1,42 @@
 const COMMAND_PARAM_RGX = /(?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?\.\d+)/g;
 const COMMAND_RGX = /(?<command>[GgMmTt]\d+\.?\d*)((?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?\.\d+))*/g;
 
-/**
- * @typedef {Object} Command
- * @property {string} command
- * @property {Object<string, number>} params
- */
+export interface Command {
+  command: string;
+  params: {
+    [param: string]: number;
+  };
+}
 
-/**
- *
- * @param {string} gcode
- */
-function removeCommentsAndSpaces(gcode) {
+function removeCommentsAndSpaces(gcode: string) {
   return gcode.replace(/;.*|\(.*\)|\s/gm, "");
 }
 
-/**
- *
- * @param {string} command
- * @returns {Object<string, number>}
- */
-function getParams(command) {
+function getParams(command: string) {
   let match;
 
-  const params = {};
+  const params: {
+    [param: string]: number;
+  } = {};
 
-  // eslint-disable-next-line no-cond-assign
   while ((match = COMMAND_PARAM_RGX.exec(command)) !== null) {
-    const { type, value } = match.groups;
+    const { type, value } = match.groups! as { type: string; value: string };
 
     params[type.toUpperCase()] = +value;
   }
 
-  // @ts-ignore
   return params;
 }
 
-/**
- *
- * @param {string} gcode
- * @returns {Command[]}
- */
-function getCommands(gcode) {
+function getCommands(gcode: string) {
   let match;
 
-  const commands = [];
+  const commands: Command[] = [];
 
-  // eslint-disable-next-line no-cond-assign
   while ((match = COMMAND_RGX.exec(gcode)) !== null) {
     const commandString = match[0];
 
-    const command = match.groups.command.toUpperCase().replace(/\s/g, "");
+    const command = match.groups!.command.toUpperCase().replace(/\s/g, "");
 
     const params = getParams(commandString);
 
@@ -62,10 +48,9 @@ function getCommands(gcode) {
 
 /**
  * Parses a Gcode string, removing any comment, and returns an array of commands
- *
- * @param {string} gcode The Gcode string
+ * @param gcode The Gcode string
  */
-export function parseGcode(gcode) {
+export function parseGcode(gcode: string) {
   const strippedGcode = removeCommentsAndSpaces(gcode);
 
   const commands = getCommands(strippedGcode);
