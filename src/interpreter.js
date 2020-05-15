@@ -435,11 +435,11 @@ export function interpretGcode(
 
 /**
  * @preserve
- * @param {{state?: MachineState, settings?: Settings}} [params={}]
+ * @param {{state?: MachineState, settings?: Settings}} [settings={}]
  */
-export function createProcessor({ state, settings }) {
-  let mState = { ...defaultState, ...state };
-  let mSettings = { ...defaultSettings, ...settings };
+export function createProcessor(settings = {}) {
+  let mState = { ...defaultState, ...settings.state };
+  let mSettings = { ...defaultSettings, ...settings.settings };
   return Object.freeze({
     /**
      * @oreserve
