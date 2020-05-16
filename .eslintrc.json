@@ -5,13 +5,23 @@
     "sourceType": "module"
   },
   "extends": [
+    "airbnb-base",
     "plugin:jest/recommended",
     "plugin:@typescript-eslint/recommended",
     "prettier/@typescript-eslint",
     "plugin:prettier/recommended"
   ],
   "rules": {
-    "@typescript-eslint/explicit-function-return-type": "off"
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "import/extensions": "off",
+    "no-cond-assign": ["error", "except-parens"]
+  },
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [".js", ".ts"]
+      }
+    }
   },
   "env": {
     "jest": true,

@@ -1,6 +1,18 @@
 import { parseGcode, Command } from './parser';
 
-declare interface MoveOperation {
+declare interface OperationBase {
+  operation: string;
+  props: unknown;
+}
+
+declare interface UnknownOperation extends OperationBase {
+  operation: 'UNKNOWN';
+  props: {
+    command: string;
+  };
+}
+
+declare interface MoveOperation extends OperationBase {
   operation: 'MOVE_TO';
   props: {
     from: Position;
@@ -11,7 +23,7 @@ declare interface MoveOperation {
   };
 }
 
-type Operation = MoveOperation;
+type Operation = MoveOperation | UnknownOperation;
 
 declare interface Position {
   x: number;
@@ -28,12 +40,6 @@ declare interface MachineState {
   feedRateG1: number;
   laserPower: number;
   extrusion: number;
-}
-
-declare interface Processor {
-  processGcode: (gcode: string) => Operation[];
-  reset: (state?: MachineState, settings?: Settings) => void;
-  readonly state: MachineState;
 }
 
 declare interface Settings {
@@ -219,29 +225,38 @@ function interpretG28(
       },
     ];
   }
-  if (settings.firmware === 'GRBL') {
-    const moveTo = {
-      x: isNumber(command.params.X) ? command.params.X : state.position.x,
-      y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
-      z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
-    };
-    const homeTo = {
-      x: isNumber(command.params.X) ? state.home.x : moveTo.x,
-      y: isNumber(command.params.Y) ? state.home.y : moveTo.y,
-      z: isNumber(command.params.Z) ? state.home.z : moveTo.z,
-    };
+
+  if (!isNumber(command.params.X) && !isNumber(command.params.Y) && !isNumber(command.params.Z)) {
     return [
-      [
-        operationMoveTo(state.position, moveTo, state.feedRateG0),
-        operationMoveTo(moveTo, homeTo, state.feedRateG0),
-      ],
+      [operationMoveTo(state.position, state.home, state.feedRateG0)],
       {
         ...state,
-        position: homeTo,
+        position: state.home,
       },
     ];
   }
-  return [[], state];
+
+  const moveTo = {
+    x: isNumber(command.params.X) ? command.params.X : state.position.x,
+    y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
+    z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
+  };
+  const homeTo = {
+    x: isNumber(command.params.X) ? state.home.x : moveTo.x,
+    y: isNumber(command.params.Y) ? state.home.y : moveTo.y,
+    z: isNumber(command.params.Z) ? state.home.z : moveTo.z,
+  };
+
+  return [
+    [
+      operationMoveTo(state.position, moveTo, state.feedRateG0),
+      operationMoveTo(moveTo, homeTo, state.feedRateG0),
+    ],
+    {
+      ...state,
+      position: homeTo,
+    },
+  ];
 }
 
 function interpretG28p1(
@@ -265,31 +280,20 @@ function interpretG28p1(
   return [[], state];
 }
 
-function interpretG92(
-  command: Command,
-  state: MachineState,
-  settings: Settings,
-): [Operation[], MachineState] {
-  if (settings.firmware === 'RepRap') {
-    return [
-      [],
-      {
-        ...state,
-        position: {
-          x: isNumber(command.params.X) ? command.params.X : state.position.x,
-          y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
-          z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
-        },
-        extrusion: isNumber(command.params.E) ? command.params.E : state.extrusion,
+function interpretG92(command: Command, state: MachineState): [Operation[], MachineState] {
+  // TODO When handling multiple coordinate systems, distinguish between RepRap and GRBL firmwares
+  return [
+    [],
+    {
+      ...state,
+      position: {
+        x: isNumber(command.params.X) ? command.params.X : state.position.x,
+        y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
+        z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
       },
-    ];
-  }
-  if (settings.firmware === 'GRBL') {
-    // TODO
-    return [[], state];
-  }
-
-  throw new Error(`Unknown firmware: ${settings.firmware}`);
+      extrusion: isNumber(command.params.E) ? command.params.E : state.extrusion,
+    },
+  ];
 }
 
 function interpretCommand(
@@ -316,9 +320,12 @@ function interpretCommand(
     return interpretG28p1(command, state, settings);
   }
   if (command.command === 'G92') {
-    return interpretG92(command, state, settings);
+    return interpretG92(command, state);
   }
-  return [[], state];
+  return [
+    [{ operation: 'UNKNOWN', props: { command: command.command } } as UnknownOperation],
+    state,
+  ];
 }
 
 export function interpretCommands(
@@ -354,9 +361,14 @@ export function interpretGcode(
   );
 }
 
-export function createProcessor(settings: { state?: MachineState; settings?: Settings } = {}) {
-  let mState = { ...defaultState, ...settings.state };
-  let mSettings = { ...defaultSettings, ...settings.settings };
+export function createProcessor(
+  settings: { state?: MachineState; settings?: Settings } = {
+    state: defaultState,
+    settings: defaultSettings,
+  },
+) {
+  let mState = settings.state || defaultState;
+  let mSettings = settings.settings || defaultSettings;
   return Object.freeze({
     processGcode(gcode: string) {
       const parsed = parseGcode(gcode);
@@ -367,12 +379,20 @@ export function createProcessor(settings: { state?: MachineState; settings?: Set
 
       return operations;
     },
-    reset(newState = defaultState, newSettings = defaultSettings) {
-      mState = newState;
-      mSettings = newSettings;
+    reset(
+      resetSettings: { state?: MachineState; settings?: Settings } = {
+        state: defaultState,
+        settings: defaultSettings,
+      },
+    ) {
+      mState = resetSettings.state || defaultState;
+      mSettings = resetSettings.settings || defaultSettings;
     },
     get state() {
       return mState;
+    },
+    get settings() {
+      return mSettings;
     },
   });
 }

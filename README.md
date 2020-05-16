@@ -1,4 +1,4 @@
-# G-code utils
+# G-code utilities
 
 Simple zero dependencies JavaScript G-code parser for Node JS and browser. Parses a G-code string, strips away the comments and returns an array of commands in the form:
 
@@ -9,8 +9,7 @@ Simple zero dependencies JavaScript G-code parser for Node JS and browser. Parse
     params:
       {
         // An object containing the parsed command parameters
-        [x: string]: number,
-        // ...
+        [parameter: string]: number,
       }
   }
 ]
