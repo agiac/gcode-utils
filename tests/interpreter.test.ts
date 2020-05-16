@@ -65,6 +65,7 @@ describe('Test the  Gcode interpreter for:', () => {
             to: { x: 117.5, y: 125, z: 5 },
             speed: 8000,
             extrusion: 5,
+            laserPower: 0,
           },
         },
       ]);

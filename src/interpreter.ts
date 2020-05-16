@@ -73,6 +73,25 @@ function isNumber(number: unknown) {
   );
 }
 
+function operationMoveTo(
+  from: Position,
+  to: Position,
+  speed: number,
+  extrusion?: number,
+  laserPower?: number,
+): MoveOperation {
+  return {
+    operation: 'MOVE_TO',
+    props: {
+      from,
+      to,
+      speed,
+      extrusion,
+      laserPower,
+    },
+  };
+}
+
 function interpretMove(
   position: Position,
   previousPosition: Position,
@@ -121,16 +140,7 @@ function interpretG0(command: Command, state: MachineState): [Operation[], Machi
   const extrusion = 0;
 
   return [
-    [
-      {
-        operation: 'MOVE_TO',
-        props: {
-          from: state.position,
-          to: position,
-          speed,
-        },
-      },
-    ],
+    [operationMoveTo(state.position, position, speed)],
     {
       ...state,
       position,
@@ -158,18 +168,7 @@ function interpretG1(command: Command, state: MachineState): [Operation[], Machi
   const extrusion = interpretExtrusion(command.params.E, state.extrusion, state.distanceMode);
 
   return [
-    [
-      {
-        operation: 'MOVE_TO',
-        props: {
-          from: state.position,
-          to: position,
-          speed,
-          extrusion: extrusion - state.extrusion,
-          laserPower,
-        },
-      },
-    ],
+    [operationMoveTo(state.position, position, speed, extrusion - state.extrusion, laserPower)],
     {
       ...state,
       position,
@@ -213,16 +212,7 @@ function interpretG28(
       z: isNumber(command.params.Z) ? 0 : state.position.z,
     };
     return [
-      [
-        {
-          operation: 'MOVE_TO',
-          props: {
-            from: state.position,
-            to: goTo,
-            speed: state.feedRateG0,
-          },
-        },
-      ],
+      [operationMoveTo(state.position, goTo, state.feedRateG0)],
       {
         ...state,
         position: goTo,
@@ -242,22 +232,8 @@ function interpretG28(
     };
     return [
       [
-        {
-          operation: 'MOVE_TO',
-          props: {
-            from: state.position,
-            to: moveTo,
-            speed: state.feedRateG0,
-          },
-        },
-        {
-          operation: 'MOVE_TO',
-          props: {
-            from: moveTo,
-            to: homeTo,
-            speed: state.feedRateG0,
-          },
-        },
+        operationMoveTo(state.position, moveTo, state.feedRateG0),
+        operationMoveTo(moveTo, homeTo, state.feedRateG0),
       ],
       {
         ...state,
