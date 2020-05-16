@@ -1,6 +1,6 @@
 {
   "name": "gcode-utils",
-  "description": "Simple G-code parser for Node and browser",
+  "description": "Simple G-code parser and interpreter for Node and browser",
   "version": "1.0.3",
   "main": "dist/bundle.cjs.js",
   "module": "dist/bundle.esm.js",
