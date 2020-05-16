@@ -78,6 +78,7 @@ describe('Test the  Gcode interpreter for:', () => {
 
   describe('Unknown firmware:', () => {
     test('Throws', () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(() => interpretGcode('G1', null, { firmware: 'Blah' } as any)).toThrow();
     });
   });

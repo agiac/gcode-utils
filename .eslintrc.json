@@ -10,6 +10,9 @@
     "prettier/@typescript-eslint",
     "plugin:prettier/recommended"
   ],
+  "rules": {
+    "@typescript-eslint/explicit-function-return-type": "off"
+  },
   "env": {
     "jest": true,
     "browser": true,

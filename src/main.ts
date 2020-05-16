@@ -1,9 +1,5 @@
-import { parseGcode } from "./parser";
-import {
-  createProcessor,
-  interpretCommands,
-  interpretGcode,
-} from "./interpreter";
+import { parseGcode } from './parser';
+import { createProcessor, interpretCommands, interpretGcode } from './interpreter';
 
 export const GcodeParser = { parseGcode };
 

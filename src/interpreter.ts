@@ -1,9 +1,17 @@
 import { parseGcode, Command } from './parser';
 
-declare interface Operation {
-  operation: string;
-  props: any;
+declare interface MoveOperation {
+  operation: 'MOVE_TO';
+  props: {
+    from: Position;
+    to: Position;
+    speed: number;
+    extrusion?: number;
+    laserPower?: number;
+  };
 }
+
+type Operation = MoveOperation;
 
 declare interface Position {
   x: number;
@@ -158,6 +166,7 @@ function interpretG1(command: Command, state: MachineState): [Operation[], Machi
           to: position,
           speed,
           extrusion: extrusion - state.extrusion,
+          laserPower,
         },
       },
     ],

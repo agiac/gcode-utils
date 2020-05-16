@@ -20,9 +20,10 @@ function getParams(command: string) {
   } = {};
 
   while ((match = COMMAND_PARAM_RGX.exec(command)) !== null) {
-    const { type, value } = match.groups! as { type: string; value: string };
-
-    params[type.toUpperCase()] = +value;
+    if (match.groups) {
+      const { type, value } = match.groups;
+      params[type.toUpperCase()] = +value;
+    }
   }
 
   return params;
@@ -34,13 +35,15 @@ function getCommands(gcode: string) {
   const commands: Command[] = [];
 
   while ((match = COMMAND_RGX.exec(gcode)) !== null) {
-    const commandString = match[0];
+    if (match && match.groups) {
+      const commandString = match[0];
 
-    const command = match.groups!.command.toUpperCase().replace(/\s/g, '');
+      const command = match.groups.command.toUpperCase().replace(/\s/g, '');
 
-    const params = getParams(commandString);
+      const params = getParams(commandString);
 
-    commands.push({ command, params });
+      commands.push({ command, params });
+    }
   }
 
   return commands;
