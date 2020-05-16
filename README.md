@@ -85,7 +85,7 @@ interface MoveOperation {
     to: Position;
     /** The speed of the movement in mm/min */
     speed: number;
-    /** The relative amount of extrusion during the movement (for 3D prinint) */
+    /** The relative amount of extrusion during the movement (for 3D prining) */
     extrusion?: number;
     /** The amount of laser power from 0 to 1 (for laser cutting) */
     laserPower?: number;
@@ -94,7 +94,7 @@ interface MoveOperation {
 
 ```
 Currently the processor can interpret the following G-code commands:
-``` G0, G1, G90, G91, G28, G28.1, G92, ```
+``` G0, G1, G90, G91, G28, G28.1, G92 ```
 
 ### Example
 
@@ -129,7 +129,7 @@ const operations = processor.processGcode(gcode);
 
 ```
 
-With ```processor.state``` you can access the current state of the virtual machine of the interpreter. The machine state has the following interface:
+In order to correctly interpret the G-code, the processor uses a __virtual machine__ with its own internal state. You can access the current state of the virtual machine of the interpreter with ```processor.state``` . The machine state has the following interface:
 
 ```typescript
 
@@ -162,5 +162,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## TODO
 
-- G-code interpreter
 - G-code builder
