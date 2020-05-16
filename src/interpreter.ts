@@ -1,48 +1,67 @@
 import { parseGcode, Command } from './parser';
 
-declare interface OperationBase {
+interface OperationBase {
+  /** The type of operation */
   operation: string;
+  /** Properties of the operation */
   props: unknown;
 }
 
-declare interface UnknownOperation extends OperationBase {
+interface UnknownOperation extends OperationBase {
   operation: 'UNKNOWN';
   props: {
+    /** The unknown G-code command */
     command: string;
   };
 }
 
-declare interface MoveOperation extends OperationBase {
+interface MoveOperation extends OperationBase {
   operation: 'MOVE_TO';
   props: {
+    /** The starting position of the movement */
     from: Position;
+    /** The target position of the movement */
     to: Position;
+    /** The speed of the movement in mm/min */
     speed: number;
+    /** The relative amount of extrusion during the movement (for 3D prinint) */
     extrusion?: number;
+    /** The amount of laser power from 0 to 1 (for laser cutting) */
     laserPower?: number;
   };
 }
 
 type Operation = MoveOperation | UnknownOperation;
 
-declare interface Position {
+interface Position {
   x: number;
   y: number;
   z: number;
 }
 
-declare interface MachineState {
+/** Represents the current state of the virtual machine */
+interface MachineState {
+  /** The current tool position */
   position: Position;
+  /** The current home position (for GRBL firmware) */
   home: Position;
+  /** The current distance mode: 'ABSOLUTE' or 'RELATIVE' */
   distanceMode: 'ABSOLUTE' | 'RELATIVE';
+  /** The current travel mode: 'G0' or 'G1' */
   travelMode: 'G0' | 'G1';
+  /** The current speed during G0 movements */
   feedRateG0: number;
+  /** The current speed during G1 movements */
   feedRateG1: number;
+  /** The current power of the laser: between 0 and 1 */
   laserPower: number;
+  /** The current position of the extrusion axis */
   extrusion: number;
 }
 
-declare interface Settings {
+/** The settings of the interpreter */
+interface Settings {
+  /** The firmware used to interpret the G-code commands: 'GRBL' or 'RepRap' */
   firmware: 'GRBL' | 'RepRap';
 }
 
