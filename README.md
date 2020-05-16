@@ -62,7 +62,7 @@ const processor = GcodeInterpreter.createProcessor();
 
 ```
 
-Currently the only firmware supported is: ```GRBL```.
+Currently the only firmware supported is [GRBL](https://github.com/grbl/grbl/wiki).
 
 The processor, via the ```processGcode``` function, can then take a G-code string and return a list of __operations__.
 

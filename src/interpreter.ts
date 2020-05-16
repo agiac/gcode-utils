@@ -437,7 +437,7 @@ export function createProcessor(
   let mSettings = settings.settings || defaultSettings;
   return Object.freeze({
     /**
-     * Interprets a G-code and returns an array of operations
+     * Interprets a G-code string and returns an array of operations
      * @param gcode The G-code string
      */
     processGcode(gcode: string) {
