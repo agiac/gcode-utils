@@ -2,7 +2,7 @@ import { parseGcode, Command } from './parser';
 
 interface OperationBase {
   /** The type of operation */
-  operation: 'UNKNOWN' | 'MOVE_TO';
+  operation: 'UNKNOWN' | 'RAPID_MOVE' | 'LINEAR_MOVE';
   /** Properties of the operation */
   props: unknown;
 }
@@ -15,8 +15,20 @@ export interface UnknownOperation extends OperationBase {
   };
 }
 
-export interface MoveOperation extends OperationBase {
-  operation: 'MOVE_TO';
+export interface RapidMoveOperation extends OperationBase {
+  operation: 'RAPID_MOVE';
+  props: {
+    /** The starting position of the movement */
+    from: Position;
+    /** The target position of the movement */
+    to: Position;
+    /** The speed of the movement in mm/min */
+    speed: number;
+  };
+}
+
+export interface LinearMoveOperation extends OperationBase {
+  operation: 'LINEAR_MOVE';
   props: {
     /** The starting position of the movement */
     from: Position;
@@ -25,13 +37,15 @@ export interface MoveOperation extends OperationBase {
     /** The speed of the movement in mm/min */
     speed: number;
     /** The relative amount of extrusion during the movement (for 3D prining) */
-    extrusion?: number;
+    extrusion: number;
     /** The amount of laser power from 0 to 1 (for laser cutting) */
-    laserPower?: number;
+    laserPower: number;
+    /** The spindel speed in revolutions per minute (for CNC) */
+    spindleSpeed: number;
   };
 }
 
-type Operation = MoveOperation | UnknownOperation;
+type Operation = RapidMoveOperation | LinearMoveOperation | UnknownOperation;
 
 interface Position {
   x: number;
@@ -49,20 +63,20 @@ export interface MachineState {
   distanceMode: 'ABSOLUTE' | 'RELATIVE';
   /** The current travel mode: 'G0' or 'G1' */
   travelMode: 'G0' | 'G1';
-  /** The current speed during G0 movements */
-  feedRateG0: number;
-  /** The current speed during G1 movements */
-  feedRateG1: number;
-  /** The current power of the laser: between 0 and 1 */
-  laserPower: number;
-  /** The current position of the extrusion axis */
+  /** The current feedrate */
+  feedRate: number;
+  /** The current position of the extrusion axis (for 3D printing) */
   extrusion: number;
+  /** The current power of the laser: between 0 and 1 (for laser cutting) */
+  laserPower: number;
+  /** The spindel speed in revolutions per minute (for CNC) */
+  spindleSpeed: number;
 }
 
 /** The settings of the interpreter */
 export interface Settings {
-  /** The firmware used to interpret the G-code commands: 'GRBL' or 'RepRap' */
-  firmware: 'GRBL' | 'RepRap';
+  /** The firmware used to interpret the G-code commands: 'GRBL' */
+  firmware: 'GRBL';
 }
 
 const defaultState: Readonly<MachineState> = Object.freeze({
@@ -78,18 +92,18 @@ const defaultState: Readonly<MachineState> = Object.freeze({
   },
   distanceMode: 'ABSOLUTE',
   travelMode: 'G0',
-  feedRateG0: 1000,
-  feedRateG1: 1000,
-  laserPower: 0,
+  feedRate: 1000,
   extrusion: 0,
+  spindleSpeed: 0,
+  laserPower: 0,
 });
 
 const defaultSettings: Readonly<Settings> = Object.freeze({
-  firmware: 'RepRap',
+  firmware: 'GRBL',
 });
 
 function isAnyFirmare(firmware: string) {
-  return firmware === 'GRBL' || firmware === 'RepRap';
+  return firmware === 'GRBL';
 }
 
 function isNumber(number: unknown) {
@@ -98,20 +112,33 @@ function isNumber(number: unknown) {
   );
 }
 
-function operationMoveTo(
+function makeRapidMove(from: Position, to: Position, speed: number): RapidMoveOperation {
+  return {
+    operation: 'RAPID_MOVE',
+    props: {
+      from,
+      to,
+      speed,
+    },
+  };
+}
+
+function makeLinearMove(
   from: Position,
   to: Position,
   speed: number,
-  extrusion?: number,
-  laserPower?: number,
-): MoveOperation {
+  extrusion: number,
+  spindleSpeed: number,
+  laserPower: number,
+): LinearMoveOperation {
   return {
-    operation: 'MOVE_TO',
+    operation: 'LINEAR_MOVE',
     props: {
       from,
       to,
       speed,
       extrusion,
+      spindleSpeed,
       laserPower,
     },
   };
@@ -158,21 +185,15 @@ function interpretG0(command: Command, state: MachineState): [Operation[], Machi
 
   const position = interpretMove(moveTo, state.position, state.distanceMode);
 
-  const speed = command.params.F || state.feedRateG0;
-
-  const laserPower = 0;
-
-  const extrusion = 0;
+  const feedRate = command.params.F || state.feedRate;
 
   return [
-    [operationMoveTo(state.position, position, speed)],
+    [makeRapidMove(state.position, position, feedRate)],
     {
       ...state,
       position,
       travelMode: 'G0',
-      feedRateG0: speed,
-      laserPower,
-      extrusion,
+      feedRate,
     },
   ];
 }
@@ -186,19 +207,28 @@ function interpretG1(command: Command, state: MachineState): [Operation[], Machi
 
   const position = interpretMove(moveTo, state.position, state.distanceMode);
 
-  const speed = command.params.F || state.feedRateG1;
+  const feedRate = command.params.F || state.feedRate;
 
   const laserPower = command.params.S || state.laserPower;
 
   const extrusion = interpretExtrusion(command.params.E, state.extrusion, state.distanceMode);
 
   return [
-    [operationMoveTo(state.position, position, speed, extrusion - state.extrusion, laserPower)],
+    [
+      makeLinearMove(
+        state.position,
+        position,
+        feedRate,
+        extrusion - state.extrusion,
+        state.spindleSpeed,
+        laserPower,
+      ),
+    ],
     {
       ...state,
       position,
       travelMode: 'G1',
-      feedRateG1: speed,
+      feedRate,
       laserPower,
       extrusion,
     },
@@ -230,50 +260,53 @@ function interpretG28(
   state: MachineState,
   settings: Settings,
 ): [Operation[], MachineState] {
-  if (settings.firmware === 'RepRap') {
-    const goTo = {
-      x: isNumber(command.params.X) ? 0 : state.position.x,
-      y: isNumber(command.params.Y) ? 0 : state.position.y,
-      z: isNumber(command.params.Z) ? 0 : state.position.z,
+  if (settings.firmware === 'GRBL') {
+    if (!isNumber(command.params.X) && !isNumber(command.params.Y) && !isNumber(command.params.Z)) {
+      return [
+        [makeRapidMove(state.position, state.home, state.feedRate)],
+        {
+          ...state,
+          position: state.home,
+        },
+      ];
+    }
+
+    const position = {
+      x: command.params.X,
+      y: command.params.Y,
+      z: command.params.Z,
     };
+
+    const intermediate = interpretMove(position, state.position, state.distanceMode);
+
+    const homeTo = {
+      x: isNumber(command.params.X) ? state.home.x : intermediate.x,
+      y: isNumber(command.params.Y) ? state.home.y : intermediate.y,
+      z: isNumber(command.params.Z) ? state.home.z : intermediate.z,
+    };
+
     return [
-      [operationMoveTo(state.position, goTo, state.feedRateG0)],
+      [
+        makeRapidMove(state.position, intermediate, state.feedRate),
+        makeRapidMove(intermediate, homeTo, state.feedRate),
+      ],
       {
         ...state,
-        position: goTo,
+        position: homeTo,
       },
     ];
   }
 
-  if (!isNumber(command.params.X) && !isNumber(command.params.Y) && !isNumber(command.params.Z)) {
-    return [
-      [operationMoveTo(state.position, state.home, state.feedRateG0)],
-      {
-        ...state,
-        position: state.home,
-      },
-    ];
-  }
-
-  const moveTo = {
-    x: isNumber(command.params.X) ? command.params.X : state.position.x,
-    y: isNumber(command.params.Y) ? command.params.Y : state.position.y,
-    z: isNumber(command.params.Z) ? command.params.Z : state.position.z,
+  const goTo = {
+    x: isNumber(command.params.X) ? 0 : state.position.x,
+    y: isNumber(command.params.Y) ? 0 : state.position.y,
+    z: isNumber(command.params.Z) ? 0 : state.position.z,
   };
-  const homeTo = {
-    x: isNumber(command.params.X) ? state.home.x : moveTo.x,
-    y: isNumber(command.params.Y) ? state.home.y : moveTo.y,
-    z: isNumber(command.params.Z) ? state.home.z : moveTo.z,
-  };
-
   return [
-    [
-      operationMoveTo(state.position, moveTo, state.feedRateG0),
-      operationMoveTo(moveTo, homeTo, state.feedRateG0),
-    ],
+    [makeRapidMove(state.position, goTo, state.feedRate)],
     {
       ...state,
-      position: homeTo,
+      position: goTo,
     },
   ];
 }
@@ -300,7 +333,6 @@ function interpretG28p1(
 }
 
 function interpretG92(command: Command, state: MachineState): [Operation[], MachineState] {
-  // TODO When handling multiple coordinate systems, distinguish between RepRap and GRBL firmwares
   return [
     [],
     {
@@ -393,7 +425,7 @@ export function interpretGcode(
 }
 
 /**
- * @param settings (Optional) The initial state of the virtual machine and the interpreter's settings
+ * @param settings (Optional) Spicify the initial state of the virtual machine and the interpreter's settings
  */
 export function createProcessor(
   settings: { state?: MachineState; settings?: Settings } = {
@@ -437,5 +469,3 @@ export function createProcessor(
     },
   });
 }
-
-export default { createProcessor, interpretGcode, interpretCommands };

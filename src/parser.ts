@@ -2,7 +2,9 @@ const COMMAND_PARAM_RGX = /(?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?
 const COMMAND_RGX = /(?<command>[GgMmTt]\d+\.?\d*)((?<type>[^GgMmTtNn\W\d])(?<value>[+-]?\d+\.?\d*|[+-]?\.\d+))*/g;
 
 export interface Command {
+  /** The name of the command e.g. 'G0' */
   command: string;
+  /** An object containing the parsed command parameters */
   params: {
     [param: string]: number;
   };
@@ -60,5 +62,3 @@ export function parseGcode(gcode: string) {
 
   return commands;
 }
-
-export default { parseGcode };

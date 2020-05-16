@@ -58,41 +58,14 @@ import {GcodeInterpreter} from "gcode-utils";
 
 const gcode = ["G90;a comment", "G00 X1.1 Z1.1", "M08"].join("\n");
 
-const processor = GcodeInterpreter.createProcessor({ settings: { firmware: 'GRBL' } });
+const processor = GcodeInterpreter.createProcessor();
 
 ```
 
-Currently two types of firmware are supported: ```GRBL``` and ```RepRap```.
+Currently the only firmware supported is: ```GRBL```.
 
-The processor can then take a G-code string and return a list of __operations__, specifically _*move*_ or _*unknown*_ operations.
+The processor, via the ```processGcode``` function, can then take a G-code string and return a list of __operations__.
 
-```typescript
-
-interface UnknownOperation {
-  operation: 'UNKNOWN';
-  props: {
-    /** The unknown G-code command */
-    command: string;
-  };
-}
-
-interface MoveOperation {
-  operation: 'MOVE_TO';
-  props: {
-    /** The starting position of the movement */
-    from: Position;
-    /** The target position of the movement */
-    to: Position;
-    /** The speed of the movement in mm/min */
-    speed: number;
-    /** The relative amount of extrusion during the movement (for 3D prining) */
-    extrusion?: number;
-    /** The amount of laser power from 0 to 1 (for laser cutting) */
-    laserPower?: number;
-  };
-}
-
-```
 Currently the processor can interpret the following G-code commands:
 ``` G0, G1, G90, G91, G28, G28.1, G92 ```
 
@@ -100,23 +73,25 @@ Currently the processor can interpret the following G-code commands:
 
 ```javascript
 
-const gcode = ["G90;a comment", "G0 X10 Y10", "G91", "G0 X1 Y1", "G40"].join("\n");
+const gcode = ["G90;a comment", "G0 X10 Y10 F1000", "G91", "G0 X1 Y1", "G40"].join("\n");
 
 const operations = processor.processGcode(gcode);
 
 // [
 //   {
-//     operation: "MOVE_TO",
+//     operation: "RAPID_MOVE",
 //     props: {
 //       from: {x: 0, y: 0, z: 0},
 //       to: { x: 10, y: 10, z: 0},
+//       speed: 1000
 //     }
 //   },
 //   {
-//     operation: "MOVE_TO",
+//     operation: "RAPID_MOVE",
 //     props: {
 //       from: {x: 10, y: 10, z: 0},
 //       to: { x: 11, y: 10, z: 0},
+//       speed: 1000
 //     }
 //   },
 //   {
@@ -129,11 +104,12 @@ const operations = processor.processGcode(gcode);
 
 ```
 
+### Machine state
+
 In order to correctly interpret the G-code, the processor uses a __virtual machine__ with its own internal state. You can access the current state of the virtual machine of the interpreter with ```processor.state``` . The machine state has the following interface:
 
 ```typescript
 
-/** Represents the current state of the virtual machine */
 interface MachineState {
   /** The current tool position */
   position: Position;
@@ -143,14 +119,14 @@ interface MachineState {
   distanceMode: 'ABSOLUTE' | 'RELATIVE';
   /** The current travel mode: 'G0' or 'G1' */
   travelMode: 'G0' | 'G1';
-  /** The current speed during G0 movements */
-  feedRateG0: number;
-  /** The current speed during G1 movements */
-  feedRateG1: number;
-  /** The current power of the laser: between 0 and 1 */
-  laserPower: number;
-  /** The current position of the extrusion axis */
+  /** The current feedrate */
+  feedRate: number;
+  /** The current position of the extrusion axis (for 3D printing) */
   extrusion: number;
+  /** The current power of the laser: between 0 and 1 (for laser cutting) */
+  laserPower: number;
+  /** The spindel speed in revolutions per minute (for CNC) */
+  spindleSpeed: number;
 }
 
 ```
@@ -162,4 +138,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## TODO
 
-- G-code builder
+See the [TODO](TODO) list.

@@ -1,3 +1,6 @@
-Spindle speed
-More M commands
-Tools
+Handle M commands
+Handle X Y as single commands 
+Handle F as single command
+Handle T command
+Complete RepRap firmware
+Signal/handle errors
